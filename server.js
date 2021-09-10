@@ -1,11 +1,15 @@
-const express = require("express");
-const data = require("./data.js");
-const mongoose = require("mongoose");
-require("dotenv").config();
-const userRouter = require("./routers/userRouter.js");
-const productRouter = require("./routers/productRouter.js");
+import express from "express";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import productRouter from "./routers/productRouter.js";
+import userRouter from "./routers/userRouter.js";
+
+dotenv.config();
 
 const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URL, {
