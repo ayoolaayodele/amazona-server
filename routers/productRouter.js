@@ -1,21 +1,24 @@
-import express from "express";
-import expressAsyncHandler from "express-async-handler";
-import data from "../data.js";
-import Product from "../models/productModel.js";
-import { isAdmin, isAuth } from '../utils.js';
+import express from 'express';
+import expressAsyncHandler from 'express-async-handler';
+import data from '../data.js';
+import Product from '../models/productModel.js';
+import { isAdmin, isAuth, isSellerOrAdmin } from '../utils.js';
 
 const productRouter = express.Router();
 
 productRouter.get(
-  "/",
+  '/',
   expressAsyncHandler(async (req, res) => {
-    const products = await Product.find({});
+    const seller = req.query.seller || '';
+    const sellerFilter = seller ? { seller } : {};
+    // We did this(...) to put the field of seller not just the object
+    const products = await Product.find({ ...sellerFilter });
     res.send(products);
   })
 );
 
 productRouter.get(
-  "/seed",
+  '/seed',
   expressAsyncHandler(async (req, res) => {
     // await Product.remove({});
     const createdProducts = await Product.insertMany(data.products);
@@ -24,13 +27,13 @@ productRouter.get(
 );
 
 productRouter.get(
-  "/:id",
+  '/:id',
   expressAsyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (product) {
       res.send(product);
     } else {
-      res.status(404).send({ message: "Product Not Found" });
+      res.status(404).send({ message: 'Product Not Found' });
     }
   })
 );
@@ -38,10 +41,11 @@ productRouter.get(
 productRouter.post(
   '/',
   isAuth,
-  isAdmin,
+  isSellerOrAdmin,
   expressAsyncHandler(async (req, res) => {
     const product = new Product({
       name: 'sample name ' + Date.now(),
+      seller: req.user._id,
       image: '/images/p1.jpg',
       price: 0,
       category: 'sample category',
@@ -59,7 +63,7 @@ productRouter.post(
 productRouter.put(
   '/:id',
   isAuth,
-  isAdmin,
+  isSellerOrAdmin,
   expressAsyncHandler(async (req, res) => {
     const productId = req.params.id;
     const product = await Product.findById(productId);
@@ -92,6 +96,5 @@ productRouter.delete(
     }
   })
 );
-
 
 export default productRouter;
