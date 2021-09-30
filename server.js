@@ -1,3 +1,5 @@
+import http from 'http';
+import { Server } from 'socket.io';
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
@@ -47,6 +49,92 @@ app.use((err, req, res, next) => {
 });
 
 const port = process.env.PORT || 5000;
-app.listen(port, () => {
+
+const httpServer = http.Server(app);
+const io = new Server(httpServer, { cors: { origin: '*' } });
+const users = [];
+
+//.on(connection) runs when there is a new user in the client
+io.on('connection', (socket) => {
+  socket.on('disconnect', () => {
+    // function that we run when a user disconnects from the server or when user close app or browser
+    const user = users.find((x) => x.socketId === socket.id);
+
+    //if user exists, then make the user offline
+    if (user) {
+      user.online = false;
+      console.log('offline', user.name);
+      //check if there is an admin and the admin is online, then show message to admin
+      const admin = users.find((x) => x.isAdmin && x.online);
+      if (admin) {
+        //then send the user parameter to the admin
+        io.to(admin.socketId).emit('updateUser', user);
+      }
+    }
+  });
+
+  socket.on('onLogin', (user) => {
+    const updatedUser = {
+      ...user,
+      online: true,
+      socketId: socket.id, //coming from socket.io from io.on(connection)
+      messages: [], //no message just reset the messages
+    };
+    const existUser = users.find((x) => x._id === updatedUser._id);
+    if (existUser) {
+      //if user exists then update its socketId and make it online, otherwise its a new user
+      existUser.socketId = socket.id;
+      existUser.online = true;
+    } else {
+      users.push(updatedUser);
+    }
+    console.log('Online', user.name);
+    const admin = users.find((x) => x.isAdmin && x.online);
+    if (admin) {
+      //updatedUser = new users infomation
+      io.to(admin.socketId).emit('updateUser', updatedUser);
+    }
+    if (updatedUser.isAdmin) {
+      io.to(updatedUser.socketId).emit('listUsers', users);
+    }
+  });
+
+  socket.on('onUserSelected', (user) => {
+    const admin = users.find((x) => x.isAdmin && x.online);
+    if (admin) {
+      const existUser = users.find((x) => x._id === user._id);
+      //if the user exist pass the current information
+      io.to(admin.socketId).emit('selectUser', existUser);
+    }
+  });
+
+  //it runs when there is a new message entered by admin or by a user
+  socket.on('onMessage', (message) => {
+    if (message.isAdmin) {
+      //message._id is the receiver of the message, and make sure the user is online
+      const user = users.find((x) => x._id === message._id && x.online);
+      if (user) {
+        io.to(user.socketId).emit('message', message);
+        user.messages.push(message); //to have message history between admin and user
+      }
+    } else {
+      //this part the user is not admin just regular user
+      const admin = users.find((x) => x.isAdmin && x.online);
+      if (admin) {
+        io.to(admin.socketId).emit('message', message);
+        //find the user and push the message
+        const user = users.find((x) => x._id === message._id && x.online);
+        user.messages.push(message);
+        //when admin is not online
+        io.to(socket.id).emit('message', {
+          name: 'Admin',
+          body: 'Sorry. I am not online right now',
+        });
+      }
+    }
+  });
+});
+
+httpServer.listen(port, () => {
   console.log(`Server started on port ${port}`);
 });
