@@ -126,10 +126,10 @@ io.on('connection', (socket) => {
         const user = users.find((x) => x._id === message._id && x.online);
         user.messages.push(message);
         //when admin is not online
-        io.to(socket.id).emit('message', {
-          name: 'Admin',
-          body: 'Sorry. I am not online right now',
-        });
+        // io.to(socket.id).emit('message', {
+        //   name: 'Admin',
+        //   body: 'Sorry. I am not online right now',
+        // });
       }
     }
   });
