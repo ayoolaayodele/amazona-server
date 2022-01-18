@@ -140,7 +140,8 @@ orderRouter.put(
         email_address: req.body.email_address,
       };
       const updatedOrder = await order.save();
-      mailgun()
+      try {
+        mailgun()
         .messages()
         .send(
           {
@@ -156,7 +157,12 @@ orderRouter.put(
               console.log(body);
             }
           }
-        );
+          );
+      } catch (err){
+console.log(err)
+      }
+     
+    
       res.send({ message: 'Order Paid', order: updatedOrder });
     } else {
       res.status(404).send({ message: 'Order Not Found' });
